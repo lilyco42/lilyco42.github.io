@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生命游戏 - WASM</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 14px;
+        }
+
+        input[type="number"] {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            grid-column: 1 / -1;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        #run-simulation {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        #run-simulation:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        #run-simulation:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #stop-simulation {
+            background: #e74c3c;
+            color: white;
+        }
+
+        #stop-simulation:hover {
+            background: #c0392b;
+        }
+
+        #reset {
+            background: #95a5a6;
+            color: white;
+        }
+
+        #reset:hover {
+            background: #7f8c8d;
+        }
+
+        .info {
+            display: flex;
+            justify-content: space-around;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .info-item {
+            text-align: center;
+        }
+
+        .info-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .info-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+            margin-top: 5px;
+        }
+
+        #grid-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            overflow: auto;
+        }
+
+        #grid {
+            display: grid;
+            gap: 1px;
+            background: #ddd;
+            padding: 1px;
+            border-radius: 5px;
+        }
+
+        .cell {
+            width: 20px;
+            height: 20px;
+            background: white;
+            transition: background-color 0.3s;
+        }
+
+        .cell.alive {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 0 5px rgba(102, 126, 234, 0.5);
+        }
+
+        #output {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 康德 生命游戏</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="grid-width">宽</label>
+                <input type="number" id="grid-width" value="30" min="5" max="100">
+            </div>
+            
+            <div class="control-group">
+                <label for="grid-height">高</label>
+                <input type="number" id="grid-height" value="30" min="5" max="100">
+            </div>
+            
+            <div class="control-group">
+                <label for="generations">模拟生物繁衍代数</label>
+                <input type="number" id="generations" value="100" min="1" max="1000">
+            </div>
+            
+            <div class="control-group">
+                <label for="speed">速度 (ms)</label>
+                <input type="number" id="speed" value="200" min="50" max="2000" step="50">
+            </div>
+
+            <div class="button-group">
+                <button id="run-simulation">开始</button>
+                <button id="stop-simulation">暂停</button>
+                <button id="reset">重置</button>
+            </div>
+        </div>
+
+        <div class="info">
+            <div class="info-item">
+                <div class="info-label">模拟生物繁衍代数</div>
+                <div class="info-value" id="current-gen">0</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">存活细胞</div>
+                <div class="info-value" id="alive-count">0</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">画布大小</div>
+                <div class="info-value" id="grid-size">30x30</div>
+            </div>
+        </div>
+
+        <div id="grid-container">
+            <div id="grid"></div>
+        </div>
+
+        <div id="output">等待开始模拟...</div>
+    </div>
+
+    <script type="module">
+        import init, { generate_random, run_simulation } from './kade/pkg/suik.js';
+
+        let wasmInitialized = false;
+        let isRunning = false;
+        let currentGeneration = 0;
+        let gridState = [];
+        let animationTimer = null;
+
+        // 初始化 WASM 模块
+        async function initializeWasm() {
+            try {
+                await init();
+                wasmInitialized = true;
+                console.log("WASM initialized");
+                document.getElementById("output").textContent = "WASM module loaded successfully! Click 'Start' to begin.";
+            } catch (error) {
+                console.error("WASM initialization failed:", error);
+                document.getElementById("output").textContent = "WASM module loading failed: " + error.message;
+            }
+        }
+
+        // 创建网格
+        function createGrid(width, height) {
+            const gridElement = document.getElementById("grid");
+            gridElement.innerHTML = '';
+            gridElement.style.gridTemplateColumns = `repeat(${width}, 20px)`;
+            
+            gridState = [];
+            for (let y = 0; y < height; y++) {
+                const row = [];
+                for (let x = 0; x < width; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.x = x;
+                    cell.dataset.y = y;
+                    
+                    // 随机初始化 30% 的细胞为存活状态
+                    const isAlive = Math.random() < 0.3;
+                    if (isAlive) {
+                        cell.classList.add('alive');
+                    }
+                    row.push(isAlive);
+                    gridElement.appendChild(cell);
+                }
+                gridState.push(row);
+            }
+            
+            updateStats();
+        }
+
+        // 更新网格显示
+        function updateGridDisplay() {
+            const cells = document.querySelectorAll('.cell');
+            let index = 0;
+            for (let y = 0; y < gridState.length; y++) {
+                for (let x = 0; x < gridState[y].length; x++) {
+                    if (gridState[y][x]) {
+                        cells[index].classList.add('alive');
+                    } else {
+                        cells[index].classList.remove('alive');
+                    }
+                    index++;
+                }
+            }
+            updateStats();
+        }
+
+        // 更新统计信息
+        function updateStats() {
+            const width = gridState[0]?.length || 0;
+            const height = gridState.length;
+            const aliveCount = gridState.flat().filter(cell => cell).length;
+            
+            document.getElementById('current-gen').textContent = currentGeneration;
+            document.getElementById('alive-count').textContent = aliveCount;
+            document.getElementById('grid-size').textContent = `${width}x${height}`;
+        }
+
+        // 获取邻居数量
+        function getNeighborCount(x, y) {
+            const width = gridState[0].length;
+            const height = gridState.length;
+            let count = 0;
+            
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    if (dx === 0 && dy === 0) continue;
+                    
+                    const nx = x + dx;
+                    const ny = y + dy;
+                    
+                    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                        if (gridState[ny][nx]) count++;
+                    }
+                }
+            }
+            return count;
+        }
+
+        // 更新一代
+        function updateGeneration() {
+            const width = gridState[0].length;
+            const height = gridState.length;
+            const newState = [];
+            
+            for (let y = 0; y < height; y++) {
+                const row = [];
+                for (let x = 0; x < width; x++) {
+                    const neighbors = getNeighborCount(x, y);
+                    const isAlive = gridState[y][x];
+                    
+                    let newState_cell;
+                    if (isAlive) {
+                        newState_cell = neighbors === 2 || neighbors === 3;
+                    } else {
+                        newState_cell = neighbors === 3;
+                    }
+                    row.push(newState_cell);
+                }
+                newState.push(row);
+            }
+            
+            gridState = newState;
+            currentGeneration++;
+            updateGridDisplay();
+        }
+
+        // Run simulation
+        function runSimulation() {
+            if (!wasmInitialized) {
+                alert("WASM 模块 还未加载完成, 请稍等...");
+                return;
+            }
+
+            const width = parseInt(document.getElementById("grid-width").value);
+            const height = parseInt(document.getElementById("grid-height").value);
+            const maxGenerations = parseInt(document.getElementById("generations").value);
+            const speed = parseInt(document.getElementById("speed").value);
+
+            if (currentGeneration === 0) {
+                createGrid(width, height);
+            }
+
+            isRunning = true;
+            document.getElementById("run-simulation").disabled = true;
+            document.getElementById("output").textContent = `Simulation running... Target: ${maxGenerations} generations`;
+
+            animationTimer = setInterval(() => {
+                if (currentGeneration >= maxGenerations) {
+                    stopSimulation();
+                    document.getElementById("output").textContent = `Simulation complete! Ran ${currentGeneration} generations`;
+                    return;
+                }
+                updateGeneration();
+            }, speed);
+        }
+
+        // Stop simulation
+        function stopSimulation() {
+            isRunning = false;
+            if (animationTimer) {
+                clearInterval(animationTimer);
+                animationTimer = null;
+            }
+            document.getElementById("run-simulation").disabled = false;
+            document.getElementById("output").textContent = `Simulation paused at generation ${currentGeneration}`;
+        }
+
+        // Reset
+        function resetSimulation() {
+            stopSimulation();
+            currentGeneration = 0;
+            const width = parseInt(document.getElementById("grid-width").value);
+            const height = parseInt(document.getElementById("grid-height").value);
+            createGrid(width, height);
+            document.getElementById("output").textContent = "Reset complete. Click 'Start' to begin new simulation.";
+        }
+
+        // 页面加载时初始化
+        window.onload = async () => {
+            await initializeWasm();
+            const width = parseInt(document.getElementById("grid-width").value);
+            const height = parseInt(document.getElementById("grid-height").value);
+            createGrid(width, height);
+        };
+
+        // 添加事件监听
+        document.getElementById("run-simulation").addEventListener("click", runSimulation);
+        document.getElementById("stop-simulation").addEventListener("click", stopSimulation);
+        document.getElementById("reset").addEventListener("click", resetSimulation);
+    </script>
+</body>
+</html>
