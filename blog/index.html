@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Viewer</title>
+</head>
+<body>
+    <div id="content"></div>
+
+    <!-- 引入 marked.js -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
+
+    <script>
+        // 加载并渲染 Markdown 文件
+        fetch('Demo1快速图形图像化开发/快速图形化应用开发.md')
+            .then(response => response.text())
+            .then(markdown => {
+                // 使用 marked 渲染 Markdown 为 HTML
+                document.getElementById('content').innerHTML = marked.parse(markdown);
+            })
+            .catch(error => {
+                console.error("Error loading the markdown file:", error);
+            });
+    </script>
+</body>
+</html>
