@@ -4,24 +4,55 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Markdown Viewer</title>
+    <style>
+        button {
+            margin: 5px;
+            padding: 10px;
+            cursor: pointer;
+        }
+        #content {
+            margin-top: 20px;
+        }
+    </style>
 </head>
 <body>
+    <div id="buttons"></div>
     <div id="content"></div>
-
+    
     <!-- 引入 marked.js -->
     <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
 
     <script>
+        // Markdown 文件路径列表及文件名
+        const markdownFiles = [
+            { name: '编程范式.md', path: './编程范式/编程范式.md' },
+            { name: 'dll内存.md', path: './内存/dll内存加载.md' },
+            { name: '更多的文件.md', path: '更多的文件.md' }
+        ];
+
+        // 获取按钮和内容容器
+        const buttonsDiv = document.getElementById('buttons');
+        const contentDiv = document.getElementById('content');
+
+        // 动态生成按钮并绑定事件
+        markdownFiles.forEach(file => {
+            const button = document.createElement('button');
+            button.textContent = file.name;  // 按钮显示文件名
+            button.addEventListener('click', () => loadMarkdown(file.path));  // 点击按钮时加载对应的文件
+            buttonsDiv.appendChild(button);
+        });
+
         // 加载并渲染 Markdown 文件
-        fetch('内存/dll内存加载.md')
-            .then(response => response.text())
-            .then(markdown => {
-                // 使用 marked 渲染 Markdown 为 HTML
-                document.getElementById('content').innerHTML = marked.parse(markdown);
-            })
-            .catch(error => {
-                console.error("Error loading the markdown file:", error);
-            });
+        function loadMarkdown(filePath) {
+            fetch(filePath)
+                .then(response => response.text())
+                .then(markdown => {
+                    contentDiv.innerHTML = marked.parse(markdown);  // 渲染 Markdown 内容
+                })
+                .catch(error => {
+                    console.error(`Error loading the markdown file ${filePath}:`, error);
+                });
+        }
     </script>
 </body>
 </html>
